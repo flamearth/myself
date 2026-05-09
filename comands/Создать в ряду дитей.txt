@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# --- 1. Проверка GitHub CLI ---
+if ! command -v gh &> /dev/null; then
+    echo "GitHub CLI не найден, устанавливаем..."
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        if command -v brew &> /dev/null; then
+            brew install gh
+        else
+            echo "Homebrew не найден. Установите его: https://brew.sh/"
+            exit 1
+        fi
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        sudo apt update
+        sudo apt install -y gh
+    else
+        echo "Автоустановка не поддерживается на этой ОС."
+        exit 1
+    fi
+fi
+
+# --- 2. Проверка авторизации ---
+if ! gh auth status &> /dev/null; then
+    echo "Вход в GitHub необходим."
+    gh auth login
+fi
+
+# --- 3. Запрос имени репозитория ---
+repo_name=$(osascript -e 'Tell application "System Events" to display dialog "Введите имя репозитория:" default answer ""' -e 'text returned of result')
+
+# --- 4. Запрос приватности ---
+private_choice=$(osascript -e 'Tell application "System Events" to display dialog "Сделать репозиторий приватным?" buttons {"Нет", "Да"} default button "Нет"')
+if [[ "$private_choice" == *"Да"* ]]; then
+    visibility="--private"
+else
+    visibility="--public"
+fi
+
+# --- 5. Создание репозитория ---
+gh repo create "$repo_name" $visibility --confirm --source=. --remote=origin --push
+
+# --- 6. Получаем имя пользователя для ссылки ---
+username=$(gh api user --jq .login)
+repo_url="https://github.com/$username/$repo_name"
+
+# --- 7. Открываем ссылку в браузере по умолчанию ---
+open "$repo_url"
+
+echo "Репозиторий создан: $repo_url"

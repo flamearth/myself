@@ -1,0 +1,51 @@
+#!/bin/bash
+
+START_FOLDER="/Users/Shared"
+
+while true; do
+    # 1. Выбор папки
+    FOLDER_PATH=$(osascript -e "POSIX path of (choose folder with prompt \"Выберите сложение с Дитя:\" default location (POSIX file \"$START_FOLDER\"))")
+
+    if [ -z "$FOLDER_PATH" ]; then
+        osascript -e 'display alert "Сложение не выбрано. Выход."'
+        exit 1
+    fi
+
+    cd "$FOLDER_PATH" || { osascript -e 'display alert "Не удалось перейти в сложеное."'; exit 1; }
+
+    # 2. Проверка наличия .git
+    if [ ! -d ".git" ]; then
+        osascript -e 'display alert "В выбранном сложении нет Дитя. Выберите другое сложение."'
+        continue
+    fi
+
+    # 3. Проверка изменений
+    CHANGES=$(/opt/homebrew/bin/git status --porcelain)
+    if [ -z "$CHANGES" ]; then
+        osascript -e 'display notification "Изменений нет, коммит не требуется." with title "Дитя сохранено"'
+        exit 0
+    fi
+
+    # 4. Ввод сообщения для коммита
+    while true; do
+        COMMIT_MSG=$(osascript -e 'text returned of (display dialog "Какие изменения сегодня?" default answer "")')
+        if [ -n "$COMMIT_MSG" ]; then
+            break
+        else
+            RESPONSE=$(osascript -e 'button returned of (display dialog "Сообщение пустое. Ввести снова?" buttons {"Выход","Повторить"} default button "Повторить")')
+            if [ "$RESPONSE" = "Выход" ]; then
+                osascript -e 'display notification "Операция прервана." with title "Послание Дитя"'
+                exit 0
+            fi
+        fi
+    done
+
+    # 5. Добавляем изменения и делаем коммит
+    /opt/homebrew/bin/git add .
+    /opt/homebrew/bin/git commit -m "$COMMIT_MSG"
+    /opt/homebrew/bin/git push
+
+    osascript -e 'display notification "Послание создано и отправлено." with title "Дитя сохранено"'
+
+    break
+done

@@ -1,0 +1,36 @@
+#!/bin/bash
+
+GIT="/opt/homebrew/bin/git"
+
+# выбор сложения
+if [ -z "$1" ]; then
+    FOLDER_PATH=$(osascript -e 'POSIX path of (choose folder with prompt "Выбери сложение:")')
+    if [ -z "$FOLDER_PATH" ]; then
+        osascript -e 'display alert "Сложение не выбрано. Выход."'
+        exit 1
+    fi
+else
+    FOLDER_PATH="$1"
+fi
+
+cd "$FOLDER_PATH" || {
+    osascript -e 'display alert "Не удалось перейти в сложение"'
+    exit 1
+}
+
+# проверка git
+if [ ! -d ".git" ]; then
+    osascript -e 'display alert "В этом сложении нет Дитя (.git не найден)"'
+    exit 1
+fi
+
+# обновляем данные с сервера
+$GIT fetch origin
+
+# 💥 ЖЁСТКАЯ СИНХРОНИЗАЦИЯ (всё локальное = сервер)
+$GIT reset --hard origin/main
+
+# (опционально) убрать мусорные неотслеживаемые файлы
+$GIT clean -fd
+
+osascript -e 'display notification "Сложение синхронизировано" with title "Git sync"'

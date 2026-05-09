@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# Выбор папки или аргумент
+if [ -z "$1" ]; then
+    FOLDER_PATH=$(osascript -e 'POSIX path of (choose folder with prompt "Выбери расположение:")')
+    if [ -z "$FOLDER_PATH" ]; then
+        osascript -e 'display alert "Сложение не выбрано. Далее выход."'
+        exit 1
+    fi
+else
+    FOLDER_PATH="$1"
+fi
+
+cd "$FOLDER_PATH" || { osascript -e 'display alert "Не удалось перейти в сложение"' ; exit 1; }
+
+# Добавление .gitignore с .DS_Store
+if [ ! -f ".gitignore" ]; then
+    echo ".DS_Store" > .gitignore
+else
+    grep -qxF ".DS_Store" .gitignore || echo ".DS_Store" >> .gitignore
+fi
+
+# Инициализация git, если нужно
+if [ ! -d ".git" ]; then
+    /opt/homebrew/bin/git init -b main
+    osascript -e 'display notification "Дитя создано" with title "Создание дитя:"'
+fi
+
+# Добавляем все изменения и коммит
+/opt/homebrew/bin/git add .
+/opt/homebrew/bin/git commit -m "Автокоммит от $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null
+
+# Ввод удалённого репозитория
+REPO_URL=$(osascript -e 'text returned of (display dialog "Введите URL удаленного репозитория:" default answer "")')
+
+if [ -n "$REPO_URL" ]; then
+    # Если remote с именем origin уже есть, удаляем
+    if /opt/homebrew/bin/git remote | grep -q "^origin$"; then
+        /opt/homebrew/bin/git remote remove origin
+    fi
+
+    /opt/homebrew/bin/git remote add origin "$REPO_URL"
+    osascript -e 'display notification "Удаленное положение добавлено." with title "Создание дитя:"'
+
+    # Пушим ветку main
+    /opt/homebrew/bin/git push -u origin main
+    osascript -e 'display notification "Коммит отправлен на удалённый репозиторий" with title "Создание дитя:"'
+else
+    osascript -e 'display notification "Адрес не введен. Пропускаем подключение к удалённому." with title "Создание дитя:"'
+fi
